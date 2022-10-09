@@ -22,21 +22,23 @@ from util import util
 from model import WNet
 from util.test_set_loader import TestSetLoader
 
+import matplotlib.pyplot as plt
+from PIL import Image
+
+config = Config()
 
 def main():
     print("PyTorch Version: ", torch.__version__)
     if torch.cuda.is_available():
         print("Cuda is available. Using GPU")
 
-    config = Config()
 
     if (config.BSD500_preprocessing == True):
         BSD500gt_to_npy(config.test_path)
 
     evaluation_dataset = TestSetLoader("test")
 
-    evaluation_dataloader = torch.utils.data.DataLoader(evaluation_dataset,
-                                                        batch_size=config.test_batch_size, num_workers=4, shuffle=False)
+    evaluation_dataloader = torch.utils.data.DataLoader(evaluation_dataset, batch_size=config.test_batch_size, num_workers=4, shuffle=True)
 
     ###################################
     #          Model Setup            #
@@ -94,19 +96,23 @@ def main():
     pixel_accuracy_sum = 0
     n = 0
     # Currently, we produce the most generous prediction looking at a single image
-    for i, [images, segmentations, image_path] in enumerate(evaluation_dataloader, 0):
+    for i, [images, image_path] in enumerate(evaluation_dataloader, 0):
+
+        # if i == 100:
+        #     break
+
         size = config.input_size
         # Assuming batch size of 1 right now
-        image = images[0]
-        target_segmentation = segmentations[0]
+        image_raw = images[0]
+        # target_segmentation = segmentations[0]
 
         # NOTE: We cut the images down to a multiple of the patch size
-        cut_w = (image[0].shape[0] // size) * size
-        cut_h = (image[0].shape[1] // size) * size
+        cut_w = (image_raw[0].shape[0] // size) * size
+        cut_h = (image_raw[0].shape[1] // size) * size
 
-        image = image[:, 0:cut_w, 0:cut_h]
+        image = image_raw[:, 0:cut_w, 0:cut_h]
 
-        target_segmentation = target_segmentation[:, 0:cut_w, 0:cut_h]
+        # target_segmentation = target_segmentation[:, 0:cut_w, 0:cut_h]
 
         if (i % 50 == 0):
             print("Prediction No", i)
@@ -123,16 +129,22 @@ def main():
 
         predicted_segmentation = combine_patches(image, seg_batch)
         prediction = predicted_segmentation.int()
-        actual = target_segmentation[0].int()
+        # actual = target_segmentation[0].int()
 
-        pixel_count = count_predicted_pixels(prediction, actual)
-        prediction = convert_prediction(pixel_count, prediction)
+        # pixel_count = count_predicted_pixels(prediction, actual)
+        # prediction = convert_prediction(pixel_count, prediction)
 
         # image_path
-        image_name = str(image_path).split(".")[2].split("/")[-1] + ".mat"
-        image_path = config.predictions_destination + image_name
+        file_name =  str(image_path).split("'")[1].replace("\\", "/").split("/")[-1]
+        mat_name = file_name.replace(".jpg", ".mat")
+        # image_name = str(image_path).split(".")[2].split("/")[-1] + ".mat"
+        # image_path = config.predictions_destination + image_name
 
         pred_object = prediction.cpu().detach().numpy()
+
+        Image.fromarray(pred_object).convert('RGB').save(f"./{config.predictions_destination2}/segmented_{config.model_name}_{file_name}")
+
+        save_image(autoencoder, images, file_name)
 
         numpy_object = np.empty((1, 5), dtype=object)
         numpy_object[0, 0] = pred_object
@@ -141,8 +153,25 @@ def main():
         numpy_object[0, 3] = pred_object
         numpy_object[0, 4] = pred_object
 
-        sc.savemat(image_path, mdict={'segs': numpy_object})
+        sc.savemat(f"./{config.predictions_destination2}/mat_{config.model_name}_{mat_name}", mdict={'segs': numpy_object})
 
+def save_image(autoencoder, progress_images, name):
+    if not torch.cuda.is_available():
+        segmentations, reconstructions = autoencoder(progress_images)
+    else:
+        segmentations, reconstructions = autoencoder(progress_images.cuda())
+
+    f, axes = plt.subplots(3,1, figsize=(3, 8))
+    for i in range(config.test_batch_size):
+        segmentation = segmentations[i]
+        pixels = torch.argmax(segmentation, axis=0).float() / config.k  # to [0,1]
+
+        axes[0].imshow(progress_images[i].permute(1, 2, 0))
+        axes[1].imshow(pixels.detach().cpu())
+        axes[2].imshow(reconstructions[i].detach().cpu().permute(1, 2, 0))
+
+    plt.savefig(f"./{config.predictions_destination2}/pred_{config.model_name}_{name}")
+    plt.close(f)
 
 if __name__ == "__main__":
     main()

@@ -25,10 +25,13 @@ if __name__ == '__main__':
 
         print('Image ', idx)
 
-        gt = raw_gt[0]
+        gt = raw_gt
         pred = raw_pred[0]
+        print(gt.shape, pred.shape)
 
+        # make them comparable cd 
         gt = gt[0:pred.shape[0], 0:pred.shape[1]]
+        print("new shape:")
         print(gt.shape, pred.shape)
 
         # visualization

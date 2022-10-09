@@ -25,7 +25,7 @@ class TestSetLoader(Dataset):
         self.mode = mode  # The "test" directory name
 
         self.images_dir = os.path.join(config.test_path, config.test_set_image_dir)
-        self.seg_dir = os.path.join(config.test_path, 'converted_segmentaions')
+        # self.seg_dir = os.path.join(config.test_path, 'converted_segmentaions')
         self.image_list = self.get_image_list()
 
     def __len__(self):
@@ -35,27 +35,27 @@ class TestSetLoader(Dataset):
         # Get the ith item of the dataset
         image_filepath, segmentation_filepath = self.image_list[i]
         image = self.load_pil_image(image_filepath)
-        segmentation = self.load_segmentation(segmentation_filepath)
+        # segmentation = self.load_segmentation(segmentation_filepath)
 
-        return toTensor(image), toTensor(segmentation), image_filepath
+        return toTensor(image), image_filepath
 
     def get_image_list(self):
         image_list = []
         # TODO: BSD 300 DOESNT HAVE VAL ==> Change to train/ test/ when using it
-
-        if (config.USE_BSD500):
-            # validation folder in the BSD500 download#
-            path_files = ["test/", "train/", "val/"]
-        else:
-            # no validation folder in the BSD300 download
-            path_files = ["test/", "train/"]
+        path_files = ['test']
+        # if (config.USE_BSD500):
+        #     # validation folder in the BSD500 download#
+        #     path_files = ["test/", "train/", "val/"]
+        # else:
+        #     # no validation folder in the BSD300 download
+        #     path_files = ["test/", "train/"]
 
         for dir in path_files:
             load_directory = self.images_dir + dir
             for file in os.listdir(load_directory):
-                if file.endswith(file_ext):
+                if file.endswith(file_ext) or file.endswith(".png"):
                     image_path = os.path.join(load_directory, file)
-                    seg_path = os.path.join(self.seg_dir, file.split('.')[0] + '.npy')
+                    seg_path = "os.path.join(self.seg_dir, file.split('.')[0] + '.npy')"
                     image_list.append((image_path, seg_path))
         return image_list
 

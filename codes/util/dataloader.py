@@ -5,6 +5,7 @@ import numpy as np
 from PIL import Image
 from scipy.io import loadmat
 from config import Config
+from util.read_rois import read_roi
 
 config = Config()
 
@@ -32,47 +33,34 @@ def _get_img_list(folder):
     gt_paths = []
     pred_paths = []
 
-    img_directory = os.path.join(folder, config.test_path+config.test_set_image_dir)
+    img_directory = os.path.join(folder, config.data_dir)
+    gt_directory = os.path.join(folder, config.data_dir)
 
-    gt_directory = os.path.join(folder, config.test_path +config.test_set_gt_dir)
-    pred_folder = os.path.join(folder, config.predictions_destination )
+    pred_folder = os.path.join(folder, config.predictions_destination2)
 
-    #We are using for both DATAsets the ground truths of BSD500
-    #Thus there is a test, train and val fodler
-    segmentation_path_folders = ["test/", "train/", "val/"]
+    segmentation_path_folders = ["test/"]
+    image_path_folders = ["test/"]
 
-    if (config.USE_BSD500):
-        # validation image folder in the BSD500 download
-        image_path_folders = ["test/", "train/", "val/"]
+    img_folder=os.path.join(img_directory,image_path_folders[0])
+    gt_folder=os.path.join(gt_directory,segmentation_path_folders[0])
 
-    else:
-        # no image validation folder in the BSD300 download
-        image_path_folders = ["test/", "train/"]
+    for filename in os.listdir(img_folder):
+        if filename.endswith(".jpg"):
 
-    #looping through the image path folders
-    for dir in image_path_folders:
-        # Joining the constant image directory with instances [train/test/val] from the list
-        img_folder=os.path.join(img_directory,dir)
-        #Loop through the dir for the segmentation (different loop as for the BSDS300 we dont have a validation folder)
-        for dir2 in segmentation_path_folders:
-            gt_folder=os.path.join(gt_directory,dir2)
+            imgpath = os.path.join(img_folder, filename)
 
+            roi_file = filename.replace('.jpg', '.rois')
+            gtpath = os.path.join(gt_folder, roi_file)
 
-            for filename in os.listdir(img_folder):
-                if filename.endswith(".jpg"):
+            mat_prediction_file = f"mat_{config.model_name}_{filename.replace('.jpg','.mat')}"
+            predpath = os.path.join(pred_folder, mat_prediction_file)
 
-                    imgpath = os.path.join(img_folder, filename)
-
-                    mat_file = filename.replace('.jpg', '.mat')
-                    gtpath = os.path.join(gt_folder, mat_file)
-                    predpath = os.path.join(pred_folder, mat_file)
-
-                    if (os.path.isfile(imgpath) and os.path.isfile(gtpath) and os.path.isfile(predpath)):
-                        img_paths.append(imgpath)
-                        gt_paths.append(gtpath)
-                        pred_paths.append(predpath)
-                    else:
-                        print('cannot find the gt or image or pred:', imgpath, gtpath, predpath)
+            if (os.path.isfile(imgpath) and os.path.isfile(gtpath) and os.path.isfile(predpath)):
+                img_paths.append(imgpath)
+                gt_paths.append(gtpath)
+                pred_paths.append(predpath)
+            else:
+                print('cannot find the gt or image or pred:', imgpath, gtpath, predpath)
 
     print('Found {} images in the folder {}'.format(len(img_paths), img_directory))
 
@@ -83,22 +71,12 @@ def _get_img_list(folder):
 def _loadmask(mask_path):
     raw_masks = []
     mean_mask = None
-    mask_mat = loadmat(mask_path)['groundTruth']
+    mask_mat = read_roi(mask_path)
 
-    idx = mask_mat.shape[1]
-    for i in range(idx):
-        seg = mask_mat[0, i][0, 0][0]
+    mean_mask = mask_mat / 1
 
-        if i == 0:
-            mean_mask = seg
-        else:
-            mean_mask = mean_mask + seg
-        raw_masks.append(seg)
 
-    mean_mask = mean_mask / idx
-    raw_masks = np.array(raw_masks)
-
-    return raw_masks, mean_mask.astype(np.int)
+    return mask_mat, mean_mask.astype(np.int)
 
 
 def _loadpred(pred_path):

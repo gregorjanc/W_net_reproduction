@@ -42,8 +42,7 @@ def main():
     train_dataset = AutoencoderDataset("train", train_xform)
     val_dataset = AutoencoderDataset("val", val_xform)
 
-    train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=config.batch_size, num_workers=4,
-                                                   shuffle=True)
+    train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=config.batch_size, num_workers=4, shuffle=True)
     val_dataloader = torch.utils.data.DataLoader(val_dataset, batch_size=config.val_batch_size, num_workers=4, shuffle=False)
 
     util.clear_progress_dir()

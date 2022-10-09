@@ -52,7 +52,7 @@ class AutoencoderDataset(Dataset):
     def get_image_list(self):
         image_list = []
         for file in os.listdir(self.images_dir):
-            if file.endswith(file_ext):
+            if file.endswith(file_ext) or file.endswith(".png"):
                 path = os.path.join(self.images_dir, file)
                 image_list.append(path)
         return image_list
